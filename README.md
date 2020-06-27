@@ -1,2 +1,2 @@
 # game-of-life
-Game Of Life Simulation sing PyGame
+Game Of Life Simulation using PyGame
