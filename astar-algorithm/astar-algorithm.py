@@ -106,10 +106,6 @@ def clear_cell_grid():
     for i in range(ROWS):
         for j in range(COLS):
             cell_grid[i][j].update('free')
-
-def update_view(point):
-    row, col = point
-    cell_grid[row][col].update('traversed')
     
 def update_path(path):
     for i in range(ROWS):
@@ -117,10 +113,13 @@ def update_path(path):
             if cell_grid[i][j].path:
                 cell_grid[i][j].surf.fill(CYAN)
                 cell_grid[i][j].path = False
-    
+    # print("DEBUG : [len(path)] ", len(path))
     for point in path:
+        if point is None:
+            continue
         row, col = point.x, point.y
         cell_grid[row][col].update('path')
+    
 
 def get_cell_location(x, y):
     row = int(x / CELL_HEIGHT)
