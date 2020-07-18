@@ -4,6 +4,11 @@ from grid import Grid
 from point import Point
 from priority_queue import PriorityQueue
 
+import math
+
+
+def copy(point):
+        return Point(point.x, point.y)
 
 class AStarAlgorithm:
     def __init__(self, grid: Grid, start: tuple, end: tuple):
@@ -21,7 +26,9 @@ class AStarAlgorithm:
         self.g = 0
         self.cost = 1  # cost for taking each step
 
-        self.heuristic = Grid[int](self.rows, self.cols, 0)  # cost map of each cell
+        self.gScore = Grid[int](self.rows, self.cols, math.inf)  # cost map of each cell
+        self.fScore = Grid[int](self.rows, self.cols, math.inf)
+        self.cameFrom = Grid[Point](self.rows, self.cols, None)
         self.action = Grid[int](self.rows, self.cols, 0)
         self.closed = Grid[int](self.rows, self.cols, 0)  # to prevent path going backwards
 
@@ -32,54 +39,53 @@ class AStarAlgorithm:
         self.left = Point(0, -1)
         self.down = Point(1, 0)
         self.right = Point(0, 1)
-        self.deltas = [self.up, self.left, self.down, self.right]
+        self.topLeft = Point(-1, -1)
+        self.topRight = Point(-1, 1)
+        self.bottomLeft = Point(1, -1)
+        self.bottomRight = Point(1, 1)
+        
+        self.deltas = [self.up, self.left, self.down, self.right, self.topLeft, self.topRight, self.bottomLeft, self.bottomRight]
 
         self.cells = PriorityQueue(maxsize=1000, max_queue=False, sort_index=0)
 
-    def __init_heuristics(self):
-        for i in range(self.rows):
-            for j in range(self.cols):
-                current_point = Point(i, j)
-                self.heuristic[i][j] = current_point.absolute_distance_from(self.end)
-                if self.grid[i][j] == self.obstacle:
-                    self.heuristic[i][j] = 99
+    def __init_gscore(self):
+        self.gScore[self.start.x][self.start.y] = 0
+        self.fScore[self.start.x][self.start.y] = self.start.absolute_distance_from(self.end)
 
     def __reconstruct_path(self, new_point):
         invpath = []
-        point = new_point
+        point = copy(new_point)
         invpath.append(point)
-
-        while point != self.start:
-            point = point - self.deltas[self.action[point.x][point.y]]
-            invpath.append(point)
-
-        path = list(reversed(invpath))
-        return path
-
+        while point is not None:
+            point = self.cameFrom[point.x][point.y]
+            invpath.insert(0, point)
+        return invpath
+    
     def run(self):
-        self.__init_heuristics()
+        self.__init_gscore()
 
-        self.f = self.g + self.heuristic[self.start.x][self.start.y]
-        self.cells.insert((self.f, self.g, self.start))
+        self.cells.insert((self.fScore[self.start.x][self.start.y], self.start))
 
         while not self.found and not self.resign:
             if self.cells.is_empty():
                 return "PATH NOT FOUND"
 
-            self.f, self.g, next_point = self.cells.pop()
+            _, current = self.cells.pop()
 
-            if next_point == self.end:
+            if current == self.end:
                 self.found = True
             else:
                 for index, delta in enumerate(self.deltas):
-                    new_point = next_point + delta
-                    x = new_point.x
-                    y = new_point.y
-                    if Point(0, 0) <= new_point <= Point(self.rows - 1, self.cols - 1):
+                    neighbour = current + delta
+                    x = neighbour.x
+                    y = neighbour.y
+                    if Point(0, 0) <= neighbour <= Point(self.rows - 1, self.cols - 1):
                         if self.closed[x][y] == self.free and self.grid[x][y] == self.free:
-                            g2 = self.g + self.cost
-                            f2 = g2 + self.heuristic[x][y]
-                            self.cells.insert((f2, g2, new_point))
-                            self.closed[x][y] = self.close
-                            self.action[x][y] = index
-            yield self.__reconstruct_path(next_point)
+                            tentativeGScore = self.gScore[current.x][current.y] + self.cost
+                            if tentativeGScore < self.gScore[x][y]:
+                                self.cameFrom[x][y] = copy(current)
+                                self.gScore[x][y] = tentativeGScore
+                                self.fScore[x][y] = self.gScore[x][y] + neighbour.absolute_distance_from(self.end)
+                                self.cells.insert((self.fScore[x][y], copy(neighbour)))
+                                self.closed[x][y] = self.close
+            yield self.__reconstruct_path(current)
